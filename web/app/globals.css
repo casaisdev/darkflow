@@ -1,0 +1,1733 @@
+@import "tailwindcss";
+
+/* ============================================================================
+   DARKFLOW — design system
+
+   INVIOLABLE RULES
+   ---------------------------------------------------------------------------
+   1. `--ghost` means ONE thing only: private flow (order flow that shows up in
+      the block without ever passing through the public mempool). Never on
+      buttons, links, hover, spinners or loading states. If something amber is
+      not private flow, it is wrong.
+   2. Fee priority → luminance (the --t-0 … --t-core ramp).
+      Age → alpha. The two axes NEVER cross.
+
+      They cross anyway, and it cannot be fully fixed. Any multiplicative
+      composition of fee→luminance and age→alpha crosses; escaping it entirely
+      would mean taking fee off luminance, which is rule 2.
+
+      That is not an invitation to fix it. It has been measured twice and
+      traded once, and the trade is deliberate:
+
+      Before, alpha multiplied the ramp luminance down toward zero, so the age
+      at which a mark stopped being perceptible was tau·ln(L·ceiling/floor) —
+      3.4s at the cheap end of the ramp against 15.1s at the expensive one. A
+      cheap transaction disappeared from the picture in three seconds while it
+      sat in the pool for another twenty. The picture asserted something false.
+
+      Now the decay runs from the ramp luminance down to the perceptible floor
+      instead of to zero, so every mark reaches that floor exactly when it is
+      culled, for every fee. What is left of the crossing is the dynamic range:
+      over its whole life a --t-0 mark travels 7.5 luminance units and a
+      --t-core mark travels 80.6, a factor of 10.8. So the age of a cheap mark
+      is barely legible.
+
+      That residue is a resolution ceiling, not a falsehood. It says "you
+      cannot read this precisely", where the old form said "this is gone". The
+      first is a limit; the second was a lie. Leave it.
+
+      And fee gets those two channels, not three. A mark's RADIUS IS CONSTANT
+      (MARK_RADIUS in lib/canvas/draw.ts) and must stay constant. It used to be
+      (0.9 + percentile · 1.9), which was an undeclared third fee channel worth
+      a 9.7x range in area on top of the ramp's 4.36x in luminance. The three
+      compounded: a cheap transaction was dim and small and low, so it vanished
+      three times over, while an expensive one shouted three times.
+
+      Measured on a live pool of 300: the cheapest fifth held 24% of the
+      population and 7.9% of the ink; the dearest fifth held 19% and 34.7%. The
+      chamber read as uniform noise at the bottom and a handful of stars at the
+      top, and neither was the distribution. Constant radius makes ink share
+      equal population share by construction — measured 22.7 / 18.7 / 21.7 /
+      18.7 / 18.3 across the five bands.
+
+      COROLLARY: MOTION IS ONLY ALLOWED ON AN AXIS THAT CARRIES NO DATUM. The
+      chamber drift used to move marks on both axes. x is packing space and
+      carries nothing, so a mark may move in it freely. y is the fee, and
+      moving it is not atmosphere, it is error in the value: measured on the
+      running app over eight seconds against an axis spanning 2.13 decades,
+      marks wandered a median of 0.0085 of the chamber height and at most
+      0.0145 — 5.6px and 9.5px, which is 4.2% median and 7.4% maximum error on
+      the tip. A reader lining a mark up against the 0.5 gwei rule was reading a
+      number that was never that transaction's. The drift is horizontal now.
+
+      A cloud chamber has no large and small particles. A track is a track;
+      what varies is how bright it is and where. If making radius proportional
+      to fee ever looks like it would help, it is the same idea coming back.
+   3. The background is never #000. The deepest layer is --sunken (#040608).
+   4. Every real-time number gets `font-variant-numeric: tabular-nums`.
+   ---------------------------------------------------------------------------
+
+   Tokens are declared twice on purpose:
+   · on `:root` under the short names, so the canvas can read them from JS
+     (`getComputedStyle(document.documentElement).getPropertyValue('--ghost')`).
+   · in `@theme inline`, mapped onto Tailwind v4 namespaces, so they generate
+     utilities (`bg-void`, `text-t-3`, `border-rule`, …) that point at the very
+     same variable instead of duplicating the value.
+   ============================================================================ */
+
+:root {
+  color-scheme: dark;
+
+  /* --- BACKGROUNDS (three layers, deliberately subtle steps) ------------- */
+  --void: #05070a; /* canvas */
+  /* The chamber's ground.
+     Darker than it was (#090c12, raw luminance 11.80). Two things ride on it,
+     and both improve:
+
+     A mark is drawn additively, so darkening the ground leaves its increment
+     unchanged and raises its Weber ratio — the cheapest stop on the ramp went
+     from 21.4 over 11.8 to the same 21.4 over a smaller number.
+
+     And the decay lands on perceptibleFloor, which is --rule-hair over
+     --field. Darkening --field *raises* that floor, so the oldest marks are
+     drawn brighter over a darker ground: they gain at both ends. That was the
+     real defect. Measured, the ramp at age zero already spanned 1.59x to 7.05x
+     the floor; it was cheap *and old* together that fell to 1.02x.
+
+     What it costs is the tint that made the chamber read as a place rather than
+     as absence — and that job now belongs to the region rules, the brackets,
+     the spine and the grid, which did not exist when this value was chosen.
+
+     It costs one more thing, and that is what fixed the value here rather than
+     lower. The chamber-to-crossing boundary is the only one of the three with
+     a separator, and the separator IS this tint dissolving. Measured on an
+     emptied chamber, ground at 30% of the width against ground past the fade:
+
+       #090c12   chamber 11.01  void 6.79   amplitude 4.22   oldest marks 1.14
+       #070a10   chamber  9.01  void 6.79   amplitude 2.22   oldest marks 1.58
+       #06080e   chamber  7.01  void 6.79   amplitude 0.22   oldest marks 2.18
+
+     #06080e reads better on every legibility number and takes the dissolution
+     to nothing — 0.22 units is not a boundary. Half the amplitude buys most of
+     the legibility; a twentieth of it buys a chamber with no edge at all, and
+     an edge cannot be added back because a hard one would box the chamber in.
+     Neither candidate clipped a single pixel to white under additive blending
+     at a full pool of 248. */
+  --field: #070a10; /* active mempool area */
+  /* --surface was here: the chrome panel slab. Deleted rather than kept as a
+     token nothing paints. See .df-panel for the measurement. */
+  --sunken: #040608; /* wells and inputs */
+
+  /* --- COLD TRACES (luminance ramp, constant hue ~235°) ------------------ */
+  --t-0: #2e3b4a;
+  --t-1: #4c6479;
+  --t-2: #7794ac;
+  --t-3: #a8c8de;
+  --t-4: #dceefb;
+  --t-core: #f4fbff;
+
+  /* --- SETTLED TX (matte material) ---------------------------------------
+     Neutral, and that is the point. It was #3d5366, hue ~207 degrees, against
+     a cold ramp at ~235 — the same family, so the block read as a faded
+     mempool rather than as a different substance, and "pending glows,
+     confirmed weighs" was said in the words and not in the materials.
+
+     The luminances are preserved exactly in the metric this project calibrates
+     in (0.2126r + 0.7152g + 0.0722b on 0..255): #3d5366 measures 79.69 and
+     #505050 measures 80.0; #46617a measures 93.06 and #5d5d5d measures 93.0.
+     Every calibrated relationship below therefore survives untouched, and so
+     does --ghost-settled, which needs no new value.
+     Raised one full step off the floor. At #1c2733 a settled row measured 29
+     over the ground in the live block and 13 in the compressed strip, so the
+     block did not read as a material with marks on it — it read as marks on
+     nothing. The problem was never that the amber was loud; it was that the
+     blue was absent, and there was no matter for the accent to sit against. */
+  --settled: #505050;
+  /* --settled-edge was here. Deleted rather than maintained: no drawing code
+     had read it since the row strokes came out, and a token nobody consults is
+     a claim about the system that is not true — the next reader would count
+     four steps on a ramp that has three. The cold ramp is --settled for the
+     body of a row, and that is all of it — position 0 is marked by geometry,
+     not by tone. */
+  /* A brighter cold tone. Read by the block's top cap, the band on the
+     primary scale, and the edge of the gas reference — anywhere something cold
+     has to sit above a settled row.
+
+     It is no longer the fill for position 0. Tone means class and nothing else
+     now: the ghost branch always won that decision anyway, so a top slot that
+     was private flow never took the lighter fill, and in roughly a quarter of
+     blocks the tab and the cap have always carried position 0 alone. Raising
+     --settled had taken the step from 1.66x to 1.17x besides.
+
+     It stays at this value for the reason it always did: one step up lands at
+     luminance 116.5 against --ghost-settled's 115.3, and nothing cold may sit
+     at the brightness of private flow at rest. */
+  --settled-hi: #5d5d5d;
+
+  /* --- GHOST — the single accent of the whole app (three-layer glow) ------ */
+  --ghost-core: #ffd9a8;
+  --ghost: #ff8a3d;
+  --ghost-halo: #d1541266;
+  /* Private flow once it has settled into a block.
+
+     The note here used to say "--ghost mixed 35% toward --settled". That is
+     the intent, not the derivation: no colour space reproduces this value from
+     those two. Checked against srgb, srgb-linear, oklab, oklch, lab, lch, hsl
+     and display-p3 at every whole percentage from 10 to 60 — the closest is
+     srgb at 40%, and it still misses by 33 across the three channels. The value
+     was chosen by hand and it is kept by measurement, not by formula: raw
+     luminance 115.28, which is the number --settled-hi is held below. Still rule 1 — it means private flow and nothing else — but
+     matte. Full --ghost reads as emitting even painted with source-over, and
+     the settled block is the half of the app where nothing emits. Pure
+     --ghost is reserved for the 180ms arrival flash. */
+  --ghost-settled: #b0673a;
+
+  /* --- CHROME ------------------------------------------------------------ */
+  --rule-hair: #131a24;
+  --rule: #1e2833;
+  --rule-lit: #33455a;
+  /* --- FOUR TEXT TIERS ---------------------------------------------------
+     BRIGHTNESS SAYS HOW LIVE A THING IS, NOT HOW IMPORTANT IT IS. Size and
+     tracking say how important. This is what an instrument does: the legend is
+     silkscreened onto the case and stays dim, the needle is bright and moves,
+     and the eye goes to what is happening rather than to what is labelled.
+
+     Measured before this was a rule: 17 distinct type registers were in use,
+     with six different text luminances and no stated meaning for any of them.
+     --text-num served both the panel's live readouts and the fee axis, and the
+     panel's readouts came out at 30.2% relative luminance while the region
+     names above them sat at 56.9% — the number you were meant to read was
+     dimmer than the word naming where to read it. On an instrument that is
+     backwards.
+
+       reading    --ghost-core  73.7%   the one fact. One per page.
+       live       --text        56.9%   any number that changes as you watch.
+       engraved   --text-num    30.2%   region names, the fee axis, hashes:
+                                        printed on the apparatus, not measured.
+       annotation --text-dim    20.7%   units, field labels, notes.
+
+     --calib is not a fifth tier. It means "not enough evidence yet" and may
+     only appear where that is what is being said. */
+  --text: #b8c9d8;
+  --text-num: #8298ac;
+  /* Raised from #4a5a6b, which failed WCAG AA on every surface it is used
+     over — and worst, not best, on the panel where most of it lives:
+
+       --void   2.85:1   --field  2.76:1   --sunken 2.87:1
+       --surface 2.63:1  panel as composited 2.65:1
+
+     AA wants 4.5:1 for text and 3:1 even for large text, so it failed both
+     everywhere. This is the smallest lift along the same hue that clears 4.5
+     against all five (4.56 on the worst, 4.97 on the best). */
+  --text-dim: #698098;
+  --live: #3dd68c;
+  --calib: #8a7a4e;
+  --dead: #6b3a3a;
+
+  /* --- MOTION ------------------------------------------------------------ */
+  --decay-trace: 8s;
+  --land-block: 420ms;
+  --land-ease: cubic-bezier(0.16, 0.84, 0.28, 1);
+  --ghost-appear: 180ms;
+  --pulse-live: 2.4s;
+
+  /* --- GRAIN ------------------------------------------------------------- */
+  /* Inline feTurbulence, desaturated, 1px, static. Preferred over a PNG:
+     no request, no bytes on disk, scales to any viewport. */
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23g)'/%3E%3C/svg%3E");
+  --grain-opacity: 0.03;
+}
+
+@theme inline {
+  /* colors → bg-*, text-*, border-*, fill-*, stroke-* */
+  --color-void: var(--void);
+  --color-field: var(--field);
+  --color-sunken: var(--sunken);
+
+  --color-t-0: var(--t-0);
+  --color-t-1: var(--t-1);
+  --color-t-2: var(--t-2);
+  --color-t-3: var(--t-3);
+  --color-t-4: var(--t-4);
+  --color-t-core: var(--t-core);
+
+  --color-settled: var(--settled);
+  --color-settled-hi: var(--settled-hi);
+
+  --color-ghost: var(--ghost);
+  --color-ghost-core: var(--ghost-core);
+  --color-ghost-halo: var(--ghost-halo);
+  --color-ghost-settled: var(--ghost-settled);
+
+  --color-rule-hair: var(--rule-hair);
+  --color-rule: var(--rule);
+  --color-rule-lit: var(--rule-lit);
+  --color-text: var(--text);
+  --color-text-num: var(--text-num);
+  --color-text-dim: var(--text-dim);
+  --color-live: var(--live);
+  --color-calib: var(--calib);
+  --color-dead: var(--dead);
+
+  /* typography → font-display, font-mono */
+  /* --font-display was Archivo, used by the wordmark and nothing else. Deleted
+     rather than left dangling: one voice means one family. */
+  --font-mono: var(--font-mono-face), ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* tracking → tracking-wordmark, tracking-label */
+  --tracking-wordmark: -0.02em;
+  --tracking-label: 0.14em;
+
+  /* instrument label size → text-label */
+  --text-label: 10px;
+  --text-label--line-height: 1.2;
+
+  /* easing → ease-land */
+  --ease-land: var(--land-ease);
+}
+
+/* ============================================================================
+   Base
+   ============================================================================ */
+
+html {
+  background-color: var(--void);
+}
+
+body {
+  background-color: var(--void);
+  color: var(--text);
+  font-family: var(--font-mono);
+  /* Rule 4: live data must not jitter when a digit changes. */
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 3% grain over --void. Static: no animation, no repaints.
+   Sits above the canvas (z-index 0) and below the chrome, so the texture
+   unifies the field instead of the field sitting on top of it. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background-image: var(--grain);
+  background-repeat: repeat;
+  opacity: var(--grain-opacity);
+}
+
+::selection {
+  background-color: var(--rule-lit);
+  color: var(--t-core);
+}
+
+/* ============================================================================
+   Text primitives
+   ============================================================================ */
+
+/* Instrument label: mono 10px, uppercase, +0.14em tracking, --text-dim. */
+.label {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+  color: var(--text-dim);
+}
+
+/* Wordmark: the mono at 600, -0.02em tracking, uppercase.
+
+   One voice. Archivo was carried for this element and nothing else, which is a
+   whole typeface loaded to set eight characters in a different accent from
+   every other word on the page. An instrument does not change its lettering
+   for its own nameplate. */
+.wordmark {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  letter-spacing: var(--tracking-wordmark);
+  text-transform: uppercase;
+}
+
+/* ============================================================================
+   Logo — the interrupted trace
+   States: idle · connecting · live. The component only sets the attribute.
+   ============================================================================ */
+
+@keyframes df-trace-draw {
+  from {
+    stroke-dashoffset: var(--df-trace-len);
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes df-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.df-trace {
+  stroke-dasharray: var(--df-trace-len);
+  stroke-dashoffset: 0;
+}
+
+/* idle: the trace has not arrived yet. */
+[data-state="idle"] .df-trace {
+  stroke-dashoffset: var(--df-trace-len);
+}
+
+/* connecting: draws left to right in 600ms. */
+[data-state="connecting"] .df-trace {
+  animation: df-trace-draw 600ms var(--land-ease) forwards;
+}
+
+/* live: full trace, at rest. */
+[data-state="live"] .df-trace {
+  stroke-dashoffset: 0;
+}
+
+/* The dot pulses alone while there is no signal. */
+[data-state="idle"] .df-halo,
+[data-state="connecting"] .df-halo {
+  animation: df-pulse var(--pulse-live) ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .df-trace,
+  .df-halo {
+    animation: none !important;
+  }
+  [data-state="connecting"] .df-trace {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* ============================================================================
+   Status indicator
+   Rule 1 applies here: --ghost is never a UI state. Status lives on
+   --live / --calib / --dead / --text-dim.
+   ============================================================================ */
+
+.df-status-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 9999px;
+  flex: none;
+  background-color: var(--text-dim);
+}
+
+.df-status-dot[data-status="connecting"] {
+  background-color: var(--calib);
+  animation: df-pulse var(--pulse-live) ease-in-out infinite;
+}
+
+.df-status-dot[data-status="live"] {
+  background-color: var(--live);
+  animation: df-pulse var(--pulse-live) ease-in-out infinite;
+}
+
+.df-status-dot[data-status="down"] {
+  background-color: var(--dead);
+}
+
+/* Not green, and not pulsing. --calib is the token that already means "do not
+   read this as a measurement yet", which is exactly what a simulated stream is
+   — permanently. */
+.df-status-dot[data-status="simulated"] {
+  background-color: var(--calib);
+}
+
+/* A recording is a measurement, and it is not now. The numeral colour: the
+   same colour every real reading on the panel is set in, and not the green
+   that means the chain is being watched at this moment. No pulse, because a
+   pulse says alive. */
+.df-status-dot[data-status="recorded"] {
+  background-color: var(--text-num);
+}
+
+.df-status-dot[data-status="loading"] {
+  background-color: var(--calib);
+  animation: df-pulse var(--pulse-live) ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .df-status-dot {
+    animation: none !important;
+  }
+}
+
+/* ============================================================================
+   Calibration
+   The app does not yet know what is private flow, and says so rather than
+   guessing. Rule 1 is at its most load-bearing here: marking everything amber
+   during warm-up would be the largest lie this application can tell.
+   ============================================================================ */
+
+.df-calibrating {
+  /* 60% saturation, on the DOM chrome only. The canvas desaturates its own
+     cached palette instead — a filter over a surface repainting at 60Hz is
+     paid for on every frame. */
+  filter: saturate(0.6);
+}
+
+.df-calib-bar {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 14px;
+  background-color: color-mix(in srgb, var(--calib) 10%, var(--void));
+  border-bottom: 1px solid color-mix(in srgb, var(--calib) 45%, transparent);
+}
+
+.df-calib-bar .label {
+  color: var(--calib);
+}
+
+/* Progress runs under the text, not as a separate widget. */
+.df-calib-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background-color: color-mix(in srgb, var(--calib) 14%, transparent);
+  transition: width 240ms var(--land-ease);
+  pointer-events: none;
+}
+
+.df-calib-bar > * {
+  position: relative;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .df-calib-fill {
+    transition: none;
+  }
+}
+
+.df-status-dot[data-status="calibrating"] {
+  background-color: var(--calib);
+  animation: df-pulse var(--pulse-live) ease-in-out infinite;
+}
+
+/* The socket is being retried. Calibration's colour, because the state is
+   the same kind: connected to the page, not yet to the chain. Faster pulse
+   than live, so it reads as effort rather than as heartbeat. */
+.df-status-dot[data-status="reconnecting"] {
+  background-color: var(--calib);
+  animation: df-pulse calc(var(--pulse-live) / 2) ease-in-out infinite;
+}
+
+/* The canvas is focusable now (see Viz). A ring on the whole element would
+   frame the viewport; the outline is drawn inset and in the rule colour, so
+   it reads as the instrument's own edge lit rather than as a browser box. */
+canvas:focus-visible {
+  outline: 1px solid var(--rule-lit);
+  outline-offset: -1px;
+}
+
+/* ============================================================================
+   Instrument panel
+   The apparatus, as distinct from the chamber it observes. This is where
+   --surface and --sunken finally do their job: four grounds, each meaning a
+   different depth — chamber, observed volume, panel, well.
+   ============================================================================ */
+
+/* No fill. The panel is the region below the rule, not a slab laid over the
+   ground.
+
+   It was --surface at 88% with a 6px backdrop blur, over 17.5% of the viewport.
+   Measured in WCAG relative luminance, --surface is 0.638% against --void's
+   0.206% — 3.1x the ground — so the largest single object on the screen was a
+   lighter rectangle carrying no data. The ground has no darkness left to give
+   (rule 3 puts the floor at --void, and #000 is forbidden), so the way to a
+   darker picture is to stop adding light, not to subtract it from the floor.
+
+   The rule stays. A rule says "these are different readings on one instrument";
+   a slab says "this is a different surface". */
+.df-panel {
+  border-top: 1px solid var(--rule);
+}
+
+/* Functional groups are divided by a rule, not by a gap. A gap says "these are
+   apart"; a rule says "these are different readings on one panel". */
+.df-panel-group + .df-panel-group {
+  border-left: 1px solid var(--rule-hair);
+}
+
+/* The primary meter sits in a well. Recessed, because on an instrument the
+   reading you are meant to take is the one set into the panel. */
+.df-well {
+  background-color: var(--sunken);
+  border: 1px solid var(--rule-hair);
+  box-shadow: inset 0 1px 0 0 rgb(0 0 0 / 0.5);
+}
+
+/*
+ * The primary numeral.
+ *
+ * Reads warm because what it measures is the warm thing — the one fact the
+ * whole apparatus exists to show. Rule 1 is not bent here, it is applied:
+ * --ghost means private flow, and this is the measurement of private flow.
+ */
+.df-primary {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 34px;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  color: var(--ghost-core);
+}
+
+/* While calibrating there is no reading, and the blank has to look deliberate
+   rather than broken. */
+.df-primary[data-unknown="true"] {
+  color: var(--calib);
+}
+
+/*
+ * The scale the primary reading is taken against.
+ *
+ * "24.0%" answers nothing on its own: the question anyone actually has is
+ * whether 24 is a lot, and no amount of weight on the numeral answers it. A
+ * measurement is a value against a scale, so here is the scale — 0 to 100,
+ * fixed, because those are the claim's own bounds and a track that rescaled
+ * itself would move the needle for reasons nobody was told about.
+ *
+ * The band is where this figure has been over the recent past; the needle is
+ * now. During calibration the track is drawn empty rather than hidden, so the
+ * panel does not change height when the reading arrives — and an instrument
+ * with a scale and no needle is the honest picture of one that is still
+ * warming up.
+ */
+.df-scale {
+  position: relative;
+  height: 12px;
+  margin-top: 4px;
+}
+
+.df-scale-track,
+.df-scale-tick,
+.df-scale-band,
+.df-scale-needle {
+  position: absolute;
+}
+
+.df-scale-track {
+  right: 0;
+  bottom: 5px;
+  left: 0;
+  height: 1px;
+  background-color: var(--rule);
+}
+
+/* 0, 50, 100. Three is a scale; more is a ruler, and this is not read to the
+   point. */
+.df-scale-tick {
+  bottom: 3px;
+  width: 1px;
+  height: 5px;
+  background-color: var(--rule);
+}
+
+/* The recent spread. At 0–100 a ten-point range is a short segment, so it has
+   to carry its own weight rather than rely on length to be seen. */
+.df-scale-band {
+  bottom: 4px;
+  height: 4px;
+  min-width: 2px;
+  background-color: var(--settled-hi);
+  box-shadow: 0 0 0 1px var(--sunken);
+}
+
+.df-scale-needle {
+  bottom: 0;
+  width: 1px;
+  height: 12px;
+  background-color: var(--ghost-core);
+}
+
+/*
+ * The gas reference.
+ *
+ * Row width is the only channel on screen carrying a quantity that nothing
+ * names. A swatch diagram was tried first and did not work: three short bars
+ * at the end of the panel read as stray rules rather than as a stack, and the
+ * caption came out wider than the thing it captioned.
+ *
+ * One bar at the full column width, labelled with the gas it stands for, says
+ * the same thing as a scale instead of as an illustration — every narrower row
+ * in the block is that figure in proportion.
+ */
+.df-reference {
+  height: 6px;
+  background-color: var(--settled);
+  border-right: 1px solid var(--settled-hi);
+}
+
+/*
+ * A reading that is true but no longer current.
+ *
+ * --calib, which already means "do not read this as a measurement of now" on
+ * the calibration bar and the status dot. One meaning, three places: a warming
+ * instrument and a stale block are both figures that are not about this moment.
+ * Struck through rather than merely tinted, because tint alone is easy to miss
+ * on a number you were already reading.
+ */
+.df-secondary[data-stale="true"],
+.df-primary[data-stale="true"] {
+  color: var(--calib);
+}
+
+.df-primary[data-stale="true"] {
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+  text-decoration-color: color-mix(in srgb, var(--calib) 55%, transparent);
+}
+
+.df-secondary {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  line-height: 1.25;
+  /* Live. These change while you watch them. */
+  color: var(--text);
+}
+
+/* The one interactive control on the instrument. Underline on hover and a
+   visible ring on focus, because a link that only reveals itself to a mouse is
+   not a link. */
+.df-about-link {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+  color: var(--text-dim);
+  text-decoration: none;
+  width: fit-content;
+}
+
+.df-about-link:hover {
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.df-about-link:focus-visible {
+  outline: 1px solid var(--rule-lit);
+  outline-offset: 4px;
+  color: var(--text);
+}
+
+/*
+ * The paragraph under the instrument.
+ *
+ * Deliberately narrow and deliberately quiet. It is the only running text on
+ * the site and it sits below a full-height apparatus, so it has to read as a
+ * plate screwed to the base of the instrument rather than as a landing page
+ * that the instrument happens to sit on top of. No new typeface, no accent —
+ * the one warm colour on this site is spoken for.
+ */
+.df-about {
+  max-width: 62ch;
+  margin-inline: auto;
+  padding: clamp(4rem, 12vh, 8rem) 1.5rem clamp(6rem, 16vh, 10rem);
+  border-top: 1px solid var(--rule-hair);
+}
+
+/*
+ * --text, not --text-dim.
+ *
+ * Measured: --text-dim is #4a5a6b on #05070a, which is 2.85:1. WCAG AA wants
+ * 4.5:1 for text and 3:1 even for large text, so it fails both. It is the right
+ * weight for a legend beside the thing it names — a legend is glanced at, not
+ * read — but this is the only running prose on the site and it is the one place
+ * someone has to read a sentence to the end.
+ *
+ * --text is 11.89:1. The paragraph stays quiet on measure and size instead: 62
+ * characters, 15px, and below the fold, so it never competes with the chamber.
+ */
+.df-about p {
+  margin-top: 1.15em;
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--text);
+  text-wrap: pretty;
+}
+
+.df-about-eyebrow {
+  margin-bottom: 0.5rem;
+}
+
+/* The provenance note. Bordered rather than coloured: --calib carries "not a
+   measurement yet" on the status dot, and spending it again here would make
+   two different things look like the same warning. */
+.df-about-note {
+  margin-top: 2rem;
+  padding-left: 1rem;
+  border-left: 1px solid var(--rule);
+}
+
+.df-about-note strong {
+  font-weight: 400;
+  color: var(--text-num);
+}
+
+/* A second heading inside the same plate. Spaced as a section, not a paragraph:
+   the first eyebrow sits on the border and this one has to read as a new
+   subject without borrowing a rule the plate does not have. */
+.df-about-eyebrow--later {
+  margin-top: 3rem;
+}
+
+/* The error terms. A list rather than prose because each item is one named
+   confound, and a reader scanning for "is this number trustworthy" should be
+   able to count them. Same size and colour as the paragraphs; the lead word is
+   set in the numeral colour the way the provenance note's is. */
+.df-about-list {
+  margin-top: 1.15em;
+  padding-left: 1rem;
+  border-left: 1px solid var(--rule-hair);
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--text);
+  text-wrap: pretty;
+}
+
+.df-about-list li + li {
+  margin-top: 0.8em;
+}
+
+.df-about-list strong {
+  font-weight: 400;
+  color: var(--text-num);
+}
+
+/*
+ * The region map across the head of the instrument.
+ *
+ * Three parallel stacks and a gap are not self-explanatory, and the screen was
+ * being read as "circles, a blank, and bars that swap". Each region gets a name
+ * and one line saying what a single thing in it is and what its size means.
+ * Names in the text colour so they read as headings; notes in the legend
+ * register so they stay quiet.
+ */
+/* A label stack, sitting on the region rule the canvas draws.
+
+   It used to draw its own rule too — border-bottom in --rule-hair — and the
+   canvas region rules landed 6px below it, so every region header carried two
+   parallel hairlines six pixels apart saying the same thing. The canvas one is
+   the better of the two: it spans the region's own width, it breaks at the
+   boundaries so the breaks read as the boundaries, and the chamber's segment
+   dissolves on the ground's curve. This one is a stroke under a caption.
+
+   The padding stays. It is what holds the four label stacks on one line, and
+   .df-crossing matches it deliberately — see there. */
+.df-region {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  padding-bottom: 7px;
+}
+
+.df-region--end {
+  text-align: right;
+}
+
+/* The crossing. It has no data in it, so it gets no name — only the direction
+   of travel, which is the one thing that happens there, and which is the whole
+   reason the two halves are on one screen. */
+/* The crossing: a rule the length of the gap, with the count under it. The
+   rule is the distance a transaction covers, drawn once so the gap reads as a
+   span rather than as absence. */
+.df-crossing {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  /* The same 7px tail every other region label stack carries, so the four
+     names sit on one line. Matching the geometry here rather than subtracting
+     seven from this stack's own offset keeps the number in one place. */
+  padding-bottom: 7px;
+}
+
+.df-crossing-rule {
+  width: 92px;
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--rule-lit) 15%,
+    var(--rule-lit) 85%,
+    transparent
+  );
+  position: relative;
+}
+
+/* An arrowhead at the right end: the travel has a direction, and it is the
+   direction the whole screen is arranged along. */
+.df-crossing-rule::after {
+  content: "";
+  position: absolute;
+  right: 6px;
+  top: -2px;
+  width: 5px;
+  height: 5px;
+  border-top: 1px solid var(--rule-lit);
+  border-right: 1px solid var(--rule-lit);
+  transform: rotate(45deg);
+}
+
+.df-region-name {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+  /* Engraved, not measured. It is 11px and tracked, which is what makes it
+     read as a heading; it does not also need to be the brightest text in its
+     corner of the screen. */
+  color: var(--text-num);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.df-region-note {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  line-height: 1.2;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The one thing the whole apparatus is for, said in words next to the colour
+   that says it. Rule 1 holds: this swatch IS private flow. */
+.df-region-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.df-region-key::before {
+  content: "";
+  width: 14px;
+  height: 4px;
+  flex: none;
+  background-color: var(--ghost-settled);
+}
+
+/*
+ * The chamber cursor. A hairline the width of the measured volume, with the
+ * reading at its right end where there is room — the chamber's own marks stop
+ * well before the fade, so the label never sits on top of the data it reports.
+ */
+/* Positioning only. It does not take pointer events — the canvas under it
+   does, and reports the pointer back (see Viz.onPointer). A zone that took
+   them took them from the marks. */
+.df-cursor-zone {
+  pointer-events: none;
+}
+
+.df-cursor {
+  position: absolute;
+  right: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+}
+
+.df-cursor-rule {
+  flex: 1;
+  height: 1px;
+  background-color: var(--rule-lit);
+}
+
+.df-cursor-readout {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 3px 8px;
+  background-color: color-mix(in srgb, var(--sunken) 92%, transparent);
+  border: 1px solid var(--rule);
+  white-space: nowrap;
+}
+
+.df-cursor-fee {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 13px;
+  line-height: 1;
+  color: var(--text-num);
+}
+
+.df-cursor-unit,
+.df-cursor-count {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  line-height: 1;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+}
+
+.df-cursor-count {
+  padding-left: 8px;
+  border-left: 1px solid var(--rule);
+}
+
+/*
+ * The fee axis numerals.
+ *
+ * A reading, not a legend — and they were classed as one. The tick set changes
+ * as the rolling window moves, so these are real-time numbers, which puts them
+ * under rule 4: they need tabular figures or the column jitters every time the
+ * axis rescales. They were also in --text-dim, the register for naming things,
+ * when their job is to be read off the instrument. Same weight as the panel's
+ * values, because they are the same kind of thing.
+ *
+ * The token was never the problem: measured, these already carried the raised
+ * --text-dim at 4.79:1 over the chamber. What was wrong was which register they
+ * were in.
+ */
+.df-axis-label {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-label);
+  line-height: 1.2;
+  letter-spacing: 0.04em;
+  color: var(--text-num);
+  text-align: right;
+}
+
+/* Which side of the axis the numerals sit on. `Instrument` computes both
+   edges from CHAMBER_LEFT and sets them as custom properties; wide screens use
+   the gutter, small screens the inside of the chamber (see below). */
+.df-axis-label,
+.df-axis-unit {
+  right: var(--axis-right);
+}
+
+.df-axis-unit {
+  top: var(--axis-unit-foot);
+}
+
+/*
+ * The inspector.
+ *
+ * A recessed plate, the same idiom as the primary meter's well, because it
+ * carries the same kind of thing: readings you are meant to take. It sits in
+ * the sunken ground so it separates from the chamber behind it without a
+ * shadow — this instrument has no shadows, only depths.
+ *
+ * Deliberately narrow and deliberately plain. It is a label on one specimen,
+ * not a second panel.
+ */
+.df-inspector {
+  width: 15.5rem;
+  padding: 10px 12px 8px;
+  background-color: color-mix(in srgb, var(--sunken) 96%, transparent);
+  border: 1px solid var(--rule);
+  backdrop-filter: blur(4px);
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+/* Stacked. Side by side, "In this block · position 178" and "never seen by
+   this node" shared 15.5rem and the location broke into four lines under the
+   flag — measured on a ghost row, the head was taller than the readings. The
+   flag is the claim, so it gets its own line, directly under the place it is
+   a claim about. */
+.df-inspector-head {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
+
+/* Rule 1: this is private flow, so it may be amber. Nothing else here may. */
+.df-inspector-flag {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  line-height: 1.2;
+  letter-spacing: 0.06em;
+  color: var(--ghost-core);
+  white-space: nowrap;
+}
+
+.df-inspector-hash {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.2;
+  color: var(--text-num);
+  word-break: break-all;
+}
+
+.df-inspector-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 0;
+  padding-top: 6px;
+  border-top: 1px solid var(--rule-hair);
+}
+
+.df-inspector-rows > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.df-inspector-rows dt {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  line-height: 1.3;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.df-inspector-rows dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  /* A datum is 13px wherever it is read. It was 12px here and 13px in the
+     panel, which is two decisions for one role and a difference nobody can
+     see anyway. */
+  font-size: 13px;
+  line-height: 1.3;
+  color: var(--text);
+  text-align: right;
+}
+
+.df-inspector-unit {
+  margin-left: 5px;
+  font-size: var(--text-label);
+  color: var(--text-dim);
+}
+
+/* Not a small number: no number. The distinction this whole codebase is
+   arranged around, at the scale of one transaction. */
+.df-inspector-unknown {
+  /* Not --calib. Calibrating means "we cannot say yet"; this means "there is
+     no such number, and there never was one". Borrowing the warm-up colour
+     would make the product's own distinction into a shade of the same thing.
+     An em dash at annotation brightness says it without claiming anything. */
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+.df-inspector-hint {
+  padding-top: 5px;
+  border-top: 1px solid var(--rule-hair);
+  opacity: 0.7;
+}
+
+/* Engraved panel legend. */
+.df-legend {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+  color: var(--text-dim);
+}
+
+/* The floor band's own reading, inside the chamber at the band's top-left.
+   Engraved register: it names a region, like the axis unit does. */
+.df-band-note {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  line-height: 1.2;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  white-space: nowrap;
+  /* Hoverable for its definition, like a legend: the seventh reading in the
+     panel said the same number and split "BASE FEE" over two lines at 1424px
+     (column 143.6px, legend 59 + gap 24 + value 62). The count belongs on the
+     band; so does its definition. */
+  pointer-events: auto;
+}
+
+/* The unit at the head of the fee scale.
+   Engraved, not measured: it is printed on the apparatus and never changes, so
+   it sits with the region names rather than with the numerals it heads. */
+.df-axis-unit {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  line-height: 1.2;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text-dim);
+  text-align: right;
+}
+
+/*
+ * The notes page.
+ *
+ * The About plate's measure and type, reused as a whole page. The only
+ * additions are the two lists: the rules, numbered and set as running text,
+ * and the failures, each a small record with three labelled fields. Labels
+ * are the legend face, so the page's hierarchy is the instrument's.
+ */
+.df-notes {
+  border-top: none;
+  padding-top: clamp(2.5rem, 8vh, 5rem);
+}
+
+.df-notes-title {
+  margin-top: 2.5rem;
+}
+
+.df-notes-rules {
+  margin-top: 1.15em;
+  padding-left: 1.6rem;
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--text);
+  text-wrap: pretty;
+  list-style: decimal;
+}
+
+.df-notes-rules li + li {
+  margin-top: 0.8em;
+}
+
+.df-notes-rules li::marker {
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.df-notes-rules strong {
+  font-weight: 400;
+  color: var(--text-num);
+}
+
+.df-notes-failures {
+  margin-top: 2rem;
+  list-style: none;
+  padding: 0;
+}
+
+.df-notes-failures li {
+  padding: 1.4rem 0 1.6rem;
+  border-top: 1px solid var(--rule-hair);
+}
+
+.df-notes-failures h3 {
+  font-size: 15px;
+  line-height: 1.4;
+  font-weight: 400;
+  color: var(--text-num);
+  display: flex;
+  gap: 1rem;
+  align-items: baseline;
+}
+
+.df-notes-index {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  letter-spacing: var(--tracking-label);
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.df-notes-failures dl {
+  margin-top: 0.9rem;
+  display: grid;
+  grid-template-columns: 8.5rem 1fr;
+  column-gap: 1rem;
+  row-gap: 0.6rem;
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--text);
+  text-wrap: pretty;
+}
+
+/* The measured figures on /notes share the failures' definition-list grid. */
+.df-notes-measured {
+  margin-top: 0.9rem;
+  display: grid;
+  grid-template-columns: 8.5rem 1fr;
+  column-gap: 1rem;
+  row-gap: 0.6rem;
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--text);
+  text-wrap: pretty;
+}
+
+.df-notes-failures dt,
+.df-notes-measured dt {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  line-height: 1.7;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+  color: var(--text-dim);
+  padding-top: 0.35em;
+}
+
+.df-notes-where {
+  display: block;
+  margin-top: 0.9rem;
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  letter-spacing: var(--tracking-label);
+  color: var(--text-dim);
+}
+
+@media (max-width: 40rem) {
+  .df-notes-failures dl {
+    grid-template-columns: 1fr;
+    row-gap: 0.2rem;
+  }
+
+  .df-notes-failures dd + dt {
+    margin-top: 0.6rem;
+  }
+}
+
+/*
+ * Below lg: the portrait instrument.
+ *
+ * The canvas takes its proportions from `NARROW` in lib/canvas/draw.ts — a
+ * block column wide enough to read rows in, a shorter crossing, a taller
+ * panel band — and this block does the chrome's half: numerals inside the
+ * chamber, region names without their notes, the panel stacked in three rows
+ * (the figure with its scale, four readings, the plate), the inspector as a
+ * sheet resting on the panel. Measured at 390×844, 430×932 and 768×1024:
+ * every glyph clear of every other, no sideways scroll, the panel inside its
+ * band. Held sideways, see the short-screen block further down.
+ *
+ * lg, not md. Measured at 768px with the wide layout: the plate and the
+ * meter alone are 672px, the secondary register is clipped at the right edge,
+ * the block's notes truncate and the fee gutter cuts the first digit off
+ * "0.15". The wide layout needs about a thousand pixels; below that this is
+ * the better instrument.
+ *
+ * 63.99rem, not 64rem: Tailwind's lg is min-width 64rem, and these rules must
+ * stop exactly where its `lg:` utilities start.
+ */
+@media (max-width: 63.99rem) {
+  /* Names only. Three stacks of notes across 390px collide; the one note
+     kept is the block's key, because it is the claim. */
+  .df-region .df-region-note:not(.df-region-key) {
+    display: none;
+  }
+
+  /* Let the block's name and key take the width they need. The region is
+     sized to the 16%-wide column on wide screens; here that is 62px. */
+  .df-region--end {
+    min-width: max-content;
+  }
+
+  /* The crossing's count is on the meter, and the strip is 14px wide. */
+  .df-crossing,
+  .df-region--strip {
+    display: none;
+  }
+
+  /* Numerals inside the chamber, left of the first marks, instead of in a
+     gutter that is now narrower than one digit. */
+  .df-axis-label,
+  .df-axis-unit {
+    right: auto;
+    left: var(--axis-left);
+    text-align: left;
+  }
+
+  /* The bounds share the head with the unit here and the foot with the
+     panel. Two labels on one spot is no label. */
+  .df-axis-bound {
+    display: none;
+  }
+
+  /* The foot of the scale is under the panel here, and the head has lost the
+     chamber's notes, so the unit moves to the end that is empty. */
+  .df-axis-unit {
+    top: var(--axis-unit-head);
+  }
+
+  .df-primary {
+    font-size: 28px;
+  }
+
+  /* The band is a minimum here, not a size. The inline height is the
+     canvas's own constant, so this is the one place it is overridden — see
+     the note on the panel in Instrument.tsx. */
+  .df-panel {
+    height: auto !important;
+    min-height: var(--panel-band);
+  }
+
+  /* Stacked groups are divided by a rule above, not beside. */
+  .df-panel-group + .df-panel-group {
+    border-left: none;
+    border-top: 1px solid var(--rule-hair);
+  }
+
+  /* The inspector is a sheet across the width here (see Instrument.tsx), not
+     a card beside a mark; its fixed width would leave it hugging the left. */
+  .df-inspector {
+    width: auto;
+  }
+}
+
+/*
+ * A phone held sideways: narrow, and 390px tall. The stacked panel of the
+ * portrait instrument is 250px; here it gets 117px, so it keeps the figure
+ * with its scale and the plate, and drops the second register, the history
+ * strip and the notes under the numeral. Measured at 844×390 before this:
+ * the panel ran to twice its band and covered half the chamber.
+ */
+@media (max-width: 63.99rem) and (max-height: 31.24rem) {
+  .df-phone-extra {
+    display: none !important;
+  }
+
+  .df-primary {
+    font-size: 24px;
+  }
+}
+
+/*
+ * The reading key.
+ *
+ * Four specimens on the chamber's own ground, each a cut of the instrument:
+ * the marks at their radius, the rows at their tone, the track as drawn. The
+ * ground is --field and the frame is --rule-hair, so each specimen is a small
+ * window onto the chamber rather than an icon beside a caption.
+ *
+ * One column, always. At the plate's 62ch a second column leaves each
+ * specimen's note at twenty characters a line, which is not a sentence.
+ */
+.df-key-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin: 1.2rem 0 0;
+}
+
+.df-key-row {
+  display: grid;
+  grid-template-columns: 72px 1fr;
+  column-gap: 16px;
+  row-gap: 3px;
+  align-items: start;
+}
+
+.df-key-specimen {
+  grid-row: 1 / span 2;
+  width: 72px;
+  height: 24px;
+  margin-top: 2px;
+  background-color: var(--field);
+  border: 1px solid var(--rule-hair);
+  box-sizing: content-box;
+}
+
+.df-key-specimen svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.df-key-rule {
+  stroke: var(--rule-hair);
+  stroke-width: 1;
+}
+
+/* The track, at the register it has on the instrument: over the floor, under
+   the marks. */
+.df-key-track {
+  stroke: var(--t-2);
+  stroke-width: 1;
+  opacity: 0.6;
+}
+
+.df-key-row dt {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0 10px;
+}
+
+.df-key-channel {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.4;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+  color: var(--text-num);
+}
+
+.df-key-reading {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  line-height: 1.4;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+}
+
+.df-key-row dd {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text);
+  text-wrap: pretty;
+}
+
+/* The axis bounds, at the two ends of the scale. Annotation, not reading:
+   they name the clamp, they are not values a mark was placed at. */
+.df-axis-bound {
+  color: var(--text-dim);
+  /* One line, whatever the gutter. At 1280px the gutter is 40px and
+     "≤ 0.001" needs 48: it broke as "≤" over "0.001", which reads as a
+     symbol and a value on two different rules. The 8px it now overhangs land
+     in the page margin, where nothing is drawn. */
+  white-space: nowrap;
+  /* Measured after nowrap at 1280px: the bound sat at left -3px, three
+     pixels of the symbol off the screen. Untracked and nudged 4px toward
+     the spine (the gutter keeps an 8px inset there; half of it is spare) it
+     starts inside the page. */
+  letter-spacing: 0;
+  transform: translate(4px, -50%);
+}
+
+/* ============================================================================
+   Driving the instrument
+   The transport, the history strip, definitions, the restart card, the
+   inspector's actions. All interactive text is the legend register with a
+   visible focus ring; none of it is amber.
+   ============================================================================ */
+
+.df-transport {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+}
+
+.df-transport-btn {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+  color: var(--text-num);
+  background: none;
+  border: 1px solid var(--rule);
+  padding: 3px 5px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.df-transport-btn:hover {
+  color: var(--text);
+  border-color: var(--rule-lit);
+}
+
+.df-transport-btn:focus-visible {
+  outline: 1px solid var(--rule-lit);
+  outline-offset: 2px;
+  color: var(--text);
+}
+
+.df-transport-btn[aria-pressed="true"] {
+  color: var(--text);
+  border-color: var(--rule-lit);
+  background-color: var(--sunken);
+}
+
+.df-transport-btn:disabled {
+  color: var(--text-dim);
+  border-color: var(--rule-hair);
+  cursor: default;
+}
+
+.df-transport-btn kbd {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: lowercase;
+  color: var(--text-dim);
+}
+
+/* The last twenty blocks. Twenty equal slots; a bar's height is its ratio
+   on the same 0–100 the scale above uses; the current block in the reading's
+   colour, the rest in the band's. An empty slot is a tick on the baseline:
+   the strip fills in as the window does. */
+.df-history {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 14px;
+  margin-top: 6px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.df-history-slot {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  position: relative;
+}
+
+.df-history-slot::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 1px;
+  background-color: var(--rule-hair);
+}
+
+.df-history-bar {
+  width: 100%;
+  min-height: 1px;
+  background-color: var(--settled-hi);
+}
+
+.df-history-slot[data-latest="true"] .df-history-bar {
+  background-color: var(--ghost-core);
+}
+
+/* A definition on a legend. Dotted underline says there is one; hover or
+   focus shows it, in the annotation register, above the legend so it never
+   covers the value beside it. */
+.df-def[data-def] {
+  position: relative;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--rule-lit);
+  cursor: help;
+}
+
+.df-def[data-def]:hover::after,
+.df-def[data-def]:focus-visible::after {
+  content: attr(data-def);
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 6px);
+  z-index: 30;
+  width: max-content;
+  max-width: 18rem;
+  padding: 6px 8px;
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  line-height: 1.5;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: var(--text);
+  background-color: color-mix(in srgb, var(--sunken) 96%, transparent);
+  border: 1px solid var(--rule);
+  white-space: normal;
+}
+
+.df-def[data-def]:focus-visible {
+  outline: 1px solid var(--rule-lit);
+  outline-offset: 2px;
+}
+
+/* The recording starting over. A card over the chamber for a moment: not a
+   cut, a stated event. */
+@keyframes df-restart {
+  0% {
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.df-restart {
+  position: absolute;
+  left: 50%;
+  top: 40%;
+  z-index: 15;
+  transform: translate(-50%, -50%);
+  padding: 8px 14px;
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  color: var(--text);
+  background-color: color-mix(in srgb, var(--sunken) 92%, transparent);
+  border: 1px solid var(--rule);
+  animation: df-restart 2.2s ease-in-out forwards;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .df-restart {
+    animation-duration: 1.6s;
+  }
+}
+
+/* The inspector's actions, only while pinned. */
+.df-inspector-actions {
+  display: flex;
+  gap: 12px;
+  padding-top: 6px;
+  border-top: 1px solid var(--rule-hair);
+}
+
+.df-inspector-action {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+  color: var(--text-num);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.df-inspector-action:hover {
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.df-inspector-action:focus-visible {
+  outline: 1px solid var(--rule-lit);
+  outline-offset: 3px;
+  color: var(--text);
+}
+
+/* A failure is said in the well, where the reading would be. */
+.df-failure {
+  color: var(--dead);
+  text-transform: none;
+  letter-spacing: 0.04em;
+}

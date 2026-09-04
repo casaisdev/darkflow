@@ -1,0 +1,64 @@
+# The gates, the same commands that close every pass locally. Nothing here is
+# a substitute for the measurements in web/scripts, ingest/scripts and the
+# tests: it only makes sure they keep passing after the session that made
+# them is gone.
+name: gate
+
+on:
+  push:
+    paths:
+      - "web/**"
+      - "ingest/**"
+      - ".github/workflows/web.yml"
+  pull_request:
+    paths:
+      - "web/**"
+      - "ingest/**"
+      - ".github/workflows/web.yml"
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: web/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      # Built the way it is deployed: the live source, the feed served by the
+      # site's own route handlers. A build with the default (synthetic) env
+      # would compile a bundle nobody ships.
+      - run: pnpm build
+        env:
+          NEXT_PUBLIC_STREAM_SOURCE: sse
+          NEXT_PUBLIC_INGEST_URL: /api/stream
+          NEXT_PUBLIC_REPLAY_URL: replay/mainnet-2026-09-03.json
+      - run: pnpm test
+
+  ingest:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ingest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: ingest/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: ingest/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test

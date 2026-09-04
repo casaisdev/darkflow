@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <title>DARKFLOW</title>
+  <!-- Compact mark: x 12→24 of the trace plus the dot, on a --void tile.
+       The tile is deliberate: the cold ramp is invisible on a light browser
+       tab, so the icon carries its own background instead of relying on one. -->
+  <defs>
+    <linearGradient id="trace" gradientUnits="userSpaceOnUse" x1="12" y1="6" x2="17" y2="6">
+      <stop offset="0" stop-color="#7794ac" />
+      <stop offset="1" stop-color="#a8c8de" />
+    </linearGradient>
+    <!-- Cubic falloff, matching HALO_FALLOFF in components/Logo.tsx: the glow
+         must not creep back into the gap. -->
+    <radialGradient id="halo" gradientUnits="userSpaceOnUse" cx="26.5" cy="6" r="5.5">
+      <stop offset="0" stop-color="#d15412" stop-opacity="0.4" />
+      <stop offset="0.25" stop-color="#d15412" stop-opacity="0.169" />
+      <stop offset="0.5" stop-color="#d15412" stop-opacity="0.05" />
+      <stop offset="0.75" stop-color="#d15412" stop-opacity="0.006" />
+      <stop offset="1" stop-color="#d15412" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+  <rect width="32" height="32" rx="7" fill="#05070a" />
+  <g transform="translate(2,2) scale(1.4) translate(-12,4)">
+    <line x1="12" y1="6" x2="17" y2="6" stroke="url(#trace)" stroke-width="2" />
+    <circle cx="26.5" cy="6" r="5.5" fill="url(#halo)" />
+    <circle cx="26.5" cy="6" r="2.6" fill="#ff8a3d" />
+    <circle cx="26.5" cy="6" r="1" fill="#ffd9a8" />
+  </g>
+</svg>

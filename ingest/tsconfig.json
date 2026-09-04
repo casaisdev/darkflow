@@ -1,0 +1,31 @@
+{
+  // Node 24 runs TypeScript directly by stripping types: no build step, no
+  // transpiler, no runtime dependency. `erasableSyntaxOnly` keeps the code
+  // inside what stripping can handle (no enums, no namespaces, no parameter
+  // properties), and `tsc --noEmit` is the type check, nothing more.
+  //
+  // Resolution is "bundler" rather than "nodenext" because the wire contract
+  // is imported from ../web, whose package.json has no "type": "module";
+  // nodenext would read it as CommonJS while Node itself loads it as ESM.
+  // The one rule bundler resolution does not enforce and Node does: every
+  // relative import carries its ".ts" extension. `pnpm dev` fails at once
+  // on an import without one.
+  "compilerOptions": {
+    "target": "es2024",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "lib": ["es2024"],
+    "types": ["node"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "erasableSyntaxOnly": true,
+    "skipLibCheck": true
+  },
+  // The wire contract lives with the web and is imported from there, so the
+  // ingest can never drift from what the page reads.
+  "include": ["src", "tests", "../web/types/stream.ts"]
+}

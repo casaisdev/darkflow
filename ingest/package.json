@@ -1,0 +1,21 @@
+{
+  "name": "darkflow-ingest",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The server half of DARKFLOW: one upstream subscription to the Ethereum mempool, fanned out as one SSE stream to every open page, running inside the web's route handlers on Vercel. Speaks the wire contract in ../web/types/stream.ts.",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@types/node": "^24.13.3",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.11"
+  },
+  "packageManager": "pnpm@11.22.0"
+}
