@@ -1,12 +1,42 @@
 import { Fragment } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { AUTHOR, SITE_NAME, TITLE } from "@/lib/site";
+
+const NOTES_TITLE = "Notes on method";
+const NOTES_DESCRIPTION =
+  "How Darkflow is built and verified, and the failures that produced a plausible picture before they were caught.";
+
+/**
+ * `openGraph` and `twitter` are set here because Next replaces those objects
+ * whole rather than merging them: without them this page unfurled with the
+ * home page's title and description under its own URL (measured on the
+ * deployed site). Replacing the object also drops the share card the root
+ * `opengraph-image.tsx` attaches, so the card is named again here.
+ */
+const CARD = { url: "/opengraph-image", width: 1200, height: 630, alt: TITLE };
 
 export const metadata: Metadata = {
-  title: "Notes on method",
-  description:
-    "How Darkflow is built and verified, and the failures that produced a plausible picture before they were caught.",
+  title: NOTES_TITLE,
+  description: NOTES_DESCRIPTION,
   alternates: { canonical: "/notes" },
+  openGraph: {
+    type: "article",
+    url: "/notes",
+    siteName: SITE_NAME,
+    title: `${NOTES_TITLE} · ${SITE_NAME}`,
+    description: NOTES_DESCRIPTION,
+    locale: "en_US",
+    images: [CARD],
+  },
+  twitter: {
+    card: "summary_large_image",
+    site: AUTHOR.handle,
+    creator: AUTHOR.handle,
+    title: `${NOTES_TITLE} · ${SITE_NAME}`,
+    description: NOTES_DESCRIPTION,
+    images: [CARD],
+  },
 };
 
 /**
@@ -48,7 +78,7 @@ const FAILURES: readonly Failure[] = [
   {
     title: "Flights from the wrong pool",
     showed:
-      "When a block landed, transactions flew from the 300-mark render sample instead of from the record of what had been seen. About 12% of a block’s public transactions had a mark to fly from — exactly the fifteen reserved for the highest fees, every block — so the other 88% appeared in place, which is the picture of private flow.",
+      "When a block landed, transactions flew from the 300-mark render sample instead of from the record of what had been seen. About 12% of a block’s public transactions had a mark to fly from, exactly the fifteen reserved for the highest fees, every block. The other 88% appeared in place, which is the picture of private flow.",
     silent:
       "Rows appearing in place is what the product is supposed to show. The animation was doing precisely what it was told.",
     caught:
@@ -58,7 +88,7 @@ const FAILURES: readonly Failure[] = [
   {
     title: "An alpha that was NaN",
     showed:
-      "Block marks were given firstSeen = NaN, on the reasoning that a transaction never announced has no earlier sighting. A NaN that reaches ctx.globalAlpha is ignored by the canvas, so every affected mark drew at full brightness — through weeks of verification captures that all looked fine.",
+      "Block marks were given firstSeen = NaN, on the reasoning that a transaction never announced has no earlier sighting. A NaN that reaches ctx.globalAlpha is ignored by the canvas, so every affected mark drew at full brightness, through weeks of verification captures that all looked fine.",
     silent:
       "The canvas does not throw on NaN. It keeps the previous alpha, and the previous alpha was a perfectly good one.",
     caught:
@@ -100,7 +130,7 @@ const FAILURES: readonly Failure[] = [
     showed:
       "The spread under the headline figure was a min/max over however many blocks had been classified. Measured over 600 generated blocks whose true spread is 30 points, two samples recover 33% of it, five recover 64%, twelve recover 82%.",
     silent:
-      "A narrow band does not read as thin evidence. It reads as a stable figure, which is a claim about Ethereum that nobody measured — and the band widens so slowly that nothing announces the earlier picture was wrong.",
+      "A narrow band does not read as thin evidence. It reads as a stable figure, which is a claim about Ethereum that nobody measured. And the band widens so slowly that nothing announces the earlier picture was wrong.",
     caught:
       "Running the estimator against the generator at every sample count. The band now waits for twelve blocks and is labelled with the count it was built from.",
     where: "lib/readout.ts",
@@ -158,7 +188,7 @@ const FAILURES: readonly Failure[] = [
   {
     title: "A governor that watched the average and missed the stutter",
     showed:
-      "On an emulated phone with the CPU held at a sixth of its speed, the field dropped two frames a second — 40 to 107 ms each — while the render budget stayed exactly where it started.",
+      "On an emulated phone with the CPU held at a sixth of its speed, the field dropped two frames a second, 40 to 107 ms each, while the render budget stayed exactly where it started.",
     silent:
       "The governor judged a window by its mean frame rate, and the mean was 67 fps: twenty-seven fast frames absorb one slow one. Nothing it measured could see the frame a reader sees.",
     caught:
@@ -190,7 +220,7 @@ const FAILURES: readonly Failure[] = [
     showed:
       "Nothing on the screen: a working tree in which the governor fix above had quietly reverted to the version from three weeks earlier.",
     silent:
-      "To measure the old behaviour against the new, the fix was mutated with sed and then restored with git checkout — which, in a tree where nothing is committed, restores the last commit, not the last edit. The tests were green before and after, on different code.",
+      "To measure the old behaviour against the new, the fix was mutated with sed and then restored with git checkout, which, in a tree where nothing is committed, restores the last commit, not the last edit. The tests were green before and after, on different code.",
     caught:
       "A grep for the new constant, done out of habit before the next run, found nothing. The fix was rebuilt from its own notes and re-verified from zero; the rule since is that a mutant is undone with the inverse edit, never with checkout.",
     where: "lib/capability.ts",
@@ -210,9 +240,9 @@ const FAILURES: readonly Failure[] = [
     showed:
       "“✓ Compiled successfully”, printed at the end of every check for several hours, while the production build had been failing since the live feed’s route handlers were added.",
     silent:
-      "The gate piped the build’s output through a filter for “error”, “Failed” and the success line. The build compiled, then died two steps later on “⨯ Invalid segment configuration export” — a route exporting maxDuration as an imported constant where the framework requires a literal — and that line contains none of the three words. The exit code was never read.",
+      "The gate piped the build’s output through a filter for “error”, “Failed” and the success line. The build compiled, then died two steps later on “⨯ Invalid segment configuration export”, a route exporting maxDuration as an imported constant where the framework requires a literal, and that line contains none of the three words. The exit code was never read.",
     caught:
-      "Trying to start the production server for a screen recording: no BUILD_ID. The route exports a literal now, a test holds it equal to the constant the stream limit derives from, and a gate is its exit code — the output is for reading, not for deciding.",
+      "Trying to start the production server for a screen recording: no BUILD_ID. The route exports a literal now, a test holds it equal to the constant the stream limit derives from, and a gate is its exit code. The output is for reading, not for deciding.",
     where: "app/api/[endpoint]/route.ts · the verification rig",
   },
   {
@@ -242,12 +272,17 @@ const MEASURED: readonly { figure: string; value: string; how: string }[] = [
   {
     figure: "Coverage",
     value: "about half of a block heard before it landed",
-    how: "55.5% over fifteen blocks in the probe; 47% to 56% across the day’s runs by the ingest’s own count, block by block. A second feed with three times the announcements added one point, so what is left unheard is mostly private flow, not deafness.",
+    how: "55.5% over fifteen blocks in the probe; 47% to 56% across the day’s runs by the ingest’s own count, block by block. A second feed with three times the announcements added one point, so what is left unheard is mostly private flow, not deafness. From the host, on its first day: 42% to 61% block by block.",
   },
   {
     figure: "Blocks",
     value: "every head became a block",
-    how: "97 of 97 over twenty minutes, receipts had for all, none missed, none invented; one link event, the opening one. Later runs: 12 of 12, 7 of 7.",
+    how: "97 of 97 over twenty minutes, receipts had for all, none missed, none invented; one link event, the opening one. Later runs: 12 of 12, 7 of 7. From the host: 12 of 12.",
+  },
+  {
+    figure: "The stream limit",
+    value: "one reconnect, no block lost",
+    how: "The host closes a streamed response at 300 s, so the ingest ends each stream at 290 s and the page reconnects with the id of the last frame it saw. A page left open for 340 s on the deployed site: live at 59 s, reconnecting at 290 s, live again at 291 s. Its block height ran from 25,905,061 to 25,905,088, twenty-eight values, none skipped, none repeated.",
   },
 ];
 
@@ -291,10 +326,10 @@ export default function NotesPage() {
       </h1>
 
       <p>
-        Darkflow is built against a synthetic generator, and it is built so
-        that when the data becomes real, nothing on the screen will need to be
-        taken on trust. Five working rules, and then the list that produced
-        them.
+        Darkflow was built against a synthetic generator before it read
+        Ethereum, so that when the data became real nothing on the screen
+        would need to be taken on trust. Five working rules, and then the list
+        that produced them.
       </p>
 
       <ol className="df-notes-rules">
@@ -344,10 +379,10 @@ export default function NotesPage() {
       </h2>
 
       <p>
-        Three numbers the feed had to produce before it could be called live,
-        measured on 2026-09-03 from a development machine running the same
-        core the site runs. The host’s own figures replace these once it is
-        deployed; until then they are the only ones there are.
+        The numbers the feed had to produce before it could be called live.
+        Measured on 2026-09-03 from a development machine running the same
+        core the site runs, then on 2026-09-04 from the host itself, the day
+        it went up.
       </p>
 
       <dl className="df-notes-measured">
@@ -367,23 +402,26 @@ export default function NotesPage() {
 
       <ul className="df-about-list">
         <li>
-          <strong>The deployment.</strong> The ingest exists and runs inside
-          the site&rsquo;s own route handlers: one subscription to a public
+          <strong>Sibling instances.</strong> The ingest runs inside the
+          site&rsquo;s own route handler: one subscription to a public
           endpoint, shared by every open page, started when the first one
-          arrives and dropped a minute after the last one leaves. It has been
-          driven against mainnet for hours from a development machine and never
-          yet from the host it will live on. What that host does at its stream
-          limit is documented from its documentation, not measured.
+          arrives and dropped a minute after the last one leaves. The host,
+          though, may run more than one copy of that handler at once, and on
+          the first day it did: a page&rsquo;s stream and its coverage poll
+          were answered by different copies, each with its own subscription.
+          The stream is right either way. The COVERAGE reading can describe
+          the copy next door, and the fix, carrying coverage inside the stream
+          itself, is not done.
         </li>
         <li>
           <strong>The propagation term.</strong> How much of the public mempool
           this feed fails to hear before it lands is the largest source of error
-          in the headline figure. It is now measured continuously &mdash; the
-          ingest counts, for every block, how many rows it had announced first,
-          and the panel shows the share as COVERAGE &mdash; and once against a
-          second feed with three times the announcements, which added one point.
-          What it has not been measured against is an independent record of the
-          pool itself, which no public endpoint offers.
+          in the headline figure. It is now measured continuously: the ingest
+          counts, for every block, how many rows it had announced first, and
+          the panel shows the share as COVERAGE. It was also measured once
+          against a second feed with three times the announcements, which added
+          one point. What it has not been measured against is an independent
+          record of the pool itself, which no public endpoint offers.
         </li>
         <li>
           <strong>Small screens.</strong> Below 1024px the instrument is laid

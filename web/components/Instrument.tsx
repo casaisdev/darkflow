@@ -1230,7 +1230,7 @@ export function Instrument() {
               be driven; a live stream shows none, because none would be
               honest. */}
           <div className="df-panel-group df-plate order-last flex w-full flex-row flex-wrap items-center gap-x-5 gap-y-1 px-4 py-2 lg:order-none lg:w-64 lg:shrink-0 lg:flex-col lg:flex-nowrap lg:items-start lg:justify-start lg:gap-1.5 lg:px-6 lg:py-2">
-            <Wordmark size={13} state="live" />
+            <Wordmark size={13} state="live" as="h1" />
             <div className="flex flex-col items-start gap-1">
               <StatusIndicator
                 status={status}

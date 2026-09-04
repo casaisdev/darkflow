@@ -48,7 +48,7 @@ export function About() {
 
       <p>
         Every twelve seconds a block is built, and some of what appears in it
-        never went through that queue — not as this feed saw it. It went
+        never went through that queue, not as this feed saw it. It went
         straight to a builder, through a private relay or inside a bundle, and
         was public for the first time when the block was. Those transactions
         cannot fly in from the left, because they were never anywhere: they
@@ -58,7 +58,7 @@ export function About() {
       <p>
         The share matters because the mempool is the part of Ethereum that is
         observable in advance. A transaction that skips it cannot be front-run,
-        which is often exactly why it skipped — and it also cannot be seen,
+        which is often exactly why it skipped. It also cannot be seen,
         priced, or argued with until it is already final. The figure above is
         how much of one block this feed never saw coming.
       </p>
@@ -88,7 +88,7 @@ export function About() {
         <li>
           <strong>The cold start.</strong> Nothing is classified until the pool
           has been watched for five blocks, or seeded from a snapshot of it.
-          Until then the figure is blank — not zero, because zero would be a
+          Until then the figure is blank, not zero, because zero would be a
           claim.
         </li>
         <li>
@@ -101,9 +101,9 @@ export function About() {
 
       <p>
         So the figure is an upper bound on private flow as seen from here, with
-        the first term unquantified. Measured against an independent record — a
-        second node, or a public mempool archive — it would become an estimate.
-        It has not been.
+        the first term unquantified. Measured against an independent record,
+        a second node or a public mempool archive, it would become an
+        estimate. It has not been.
       </p>
 
       <p>
@@ -116,23 +116,22 @@ export function About() {
         <p className="df-about-note">
           <strong>This page is replaying a recording.</strong> Every
           transaction and block on it is real, captured from Ethereum mainnet
-          through public RPC endpoints — the panel says when, and which
+          through public RPC endpoints. The panel says when, and which
           blocks. It plays at the pace it was recorded and starts over when it
           ends. What is not real is the clock: a block that landed one
-          afternoon lands again now, with every age exactly as it was. The
-          ingest that would make this live does not exist yet.
+          afternoon lands again now, with every age exactly as it was. This
+          build was set to play the recording; the live feed is a build away.
         </p>
       ) : null}
 
       {simulated ? (
         <p className="df-about-note">
-          <strong>This page is not showing Ethereum.</strong> The ingest that
-          reads the real mempool does not exist yet, so every figure here comes
-          from a synthetic generator built to have the shape of real traffic —
-          long-tailed fees, twelve-second blocks, transactions that were never
-          announced. It is there so the instrument can be built and judged
-          before the data is real. Nothing on this page is a measurement of the
-          chain.
+          <strong>This page is not showing Ethereum.</strong> This build runs
+          without the live feed, so every figure here comes from a synthetic
+          generator built to have the shape of real traffic: long-tailed fees,
+          twelve-second blocks, transactions that were never announced. It is
+          there so the instrument can be built and judged before the data is
+          real. Nothing on this page is a measurement of the chain.
         </p>
       ) : null}
     </section>

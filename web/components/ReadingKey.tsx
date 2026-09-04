@@ -49,7 +49,7 @@ const CHANNELS: readonly Channel[] = [
   {
     channel: "The floor band",
     reading: "at base fee",
-    note: "Below the lowest rule is the band: transactions offering nothing above the base fee. In every mainnet recording so far that is most of the pool. A mark's height inside it means nothing — how full it is does.",
+    note: "Below the lowest rule is the band: transactions offering nothing above the base fee. In every mainnet recording so far that is most of the pool. A mark's height inside it means nothing. How full it is does.",
     specimen: (
       <svg viewBox="0 0 72 24" aria-hidden="true">
         <line x1="4" y1="6.5" x2="68" y2="6.5" className="df-key-rule" />

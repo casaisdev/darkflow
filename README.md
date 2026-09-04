@@ -116,7 +116,7 @@ UPSTREAM_WS_URL=wss://ethereum-rpc.publicnode.com        # server-side
 
 Everything else has a default and is explained in `web/.env.example`.
 
-`pnpm lint`, `pnpm build` and `pnpm test` in each package. 395 tests in the
+`pnpm lint`, `pnpm build` and `pnpm test` in each package. 399 tests in the
 web, 57 in the ingest, and the ones that matter are checked with mutants: a
 test that stays green when the code it guards is broken is not a test. CI runs
 all of it on every push.

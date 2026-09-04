@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { DESCRIPTION, SITE_NAME, TAGLINE } from "@/lib/site";
+import { DESCRIPTION, SITE_NAME, TITLE } from "@/lib/site";
 
 /**
  * Written as `manifest.ts` rather than a literal `manifest.json` so the shape
@@ -8,7 +8,7 @@ import { DESCRIPTION, SITE_NAME, TAGLINE } from "@/lib/site";
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: `${SITE_NAME} — ${TAGLINE}`,
+    name: TITLE,
     short_name: SITE_NAME,
     description: DESCRIPTION,
     start_url: "/",

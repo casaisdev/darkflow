@@ -12,11 +12,13 @@ import { About } from "@/components/About";
  */
 export default function Home() {
   return (
-    <>
+    // `contents` so the landmark adds no box: the instrument is sized against
+    // the body, and a wrapper with a box of its own would sit between them.
+    <main className="contents">
       <Instrument />
       <About />
       {/* Renders nothing. Logs the data layer with ?probe=1. */}
       <StreamProbe />
-    </>
+    </main>
   );
 }

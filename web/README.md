@@ -60,7 +60,7 @@ is derived from the route's `maxDuration` so the two cannot drift.
 | `app/api/[endpoint]/route.ts` | The live feed: stream, state and health from one function. |
 | `lib/ingest-core.ts` | The one place an ingest core is created, for that route. |
 | `scripts/` | Fake ingest, recording capture, soak, favicon. |
-| `tests/` | 395 tests. The recording in `tests/fixtures/` pins the axis-stability numbers. |
+| `tests/` | 399 tests. The recording in `tests/fixtures/` pins the axis-stability numbers. |
 
 ## Design rules
 

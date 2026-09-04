@@ -19,9 +19,9 @@ import {
   VOID,
   loadGoogleFont,
 } from "@/lib/og";
-import { TAGLINE } from "@/lib/site";
+import { TAGLINE, TITLE } from "@/lib/site";
 
-export const alt = `DARKFLOW — ${TAGLINE}`;
+export const alt = TITLE;
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 

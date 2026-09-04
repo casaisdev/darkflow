@@ -228,6 +228,14 @@ const TRACE_DROP = Number(
 export type WordmarkProps = Omit<LogoProps, "title"> & {
   /** Type size of "DARKFLOW", as px or any CSS length. The logo scales with it. */
   size?: number | string;
+  /**
+   * The element the name is set in. The instrument's plate passes `h1`: the
+   * name is the page's one heading, and a page with no heading tells a
+   * crawler and a screen reader nothing about what it is. A `span` (the
+   * default) renders identically; preflight leaves an `h1` with no size or
+   * margin of its own, and the size is set inline here anyway.
+   */
+  as?: "span" | "h1";
 };
 
 /**
@@ -242,6 +250,7 @@ export function Wordmark({
   state = "live",
   className,
   uid = "dfw",
+  as: Name = "span",
 }: WordmarkProps) {
   const type = toLength(size);
   return (
@@ -272,12 +281,12 @@ export function Wordmark({
         luminance, above the primary reading's 73.7%, which inverts the one
         thing brightness is for here: the maker's name outshone the measurement.
       */}
-      <span
+      <Name
         className="wordmark text-text-num"
         style={{ fontSize: type, lineHeight: 1 }}
       >
         Darkflow
-      </span>
+      </Name>
     </span>
   );
 }
