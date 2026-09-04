@@ -71,14 +71,14 @@ sheet. A governor watches both the average frame rate and the slowest frame in
 each window and cuts the render budget when either says the device is
 struggling.
 
-`ingest/` is the server half, with no server. It is a core the web's own route
-handlers import and run inside the site's functions: one WebSocket subscription
-to PublicNode for pending transactions and heads, one `eth_getBlockReceipts`
-per block, frames batched at 10 Hz, replay from the last minute when a page
-reconnects, and its own coverage measured on every block. Zero runtime
-dependencies. It subscribes when the first page arrives and unsubscribes a
-minute after the last one leaves, because nobody is watching this all day and
-nothing should run all day.
+`ingest/` is the server half, with no server. It is a core that one route
+handler in the web imports and runs inside a single one of the site's
+functions: one WebSocket subscription to PublicNode for pending transactions
+and heads, one `eth_getBlockReceipts` per block, frames batched at 10 Hz,
+replay from the last minute when a page reconnects, and its own coverage
+measured on every block. Zero runtime dependencies. It subscribes when the
+first page arrives and unsubscribes a minute after the last one leaves,
+because nobody is watching this all day and nothing should run all day.
 
 Why a public endpoint and not a paid one: every metered provider prices the
 mempool by message or by byte, and the mempool is the biggest stream the chain
@@ -116,7 +116,7 @@ UPSTREAM_WS_URL=wss://ethereum-rpc.publicnode.com        # server-side
 
 Everything else has a default and is explained in `web/.env.example`.
 
-`pnpm lint`, `pnpm build` and `pnpm test` in each package. 394 tests in the
+`pnpm lint`, `pnpm build` and `pnpm test` in each package. 395 tests in the
 web, 57 in the ingest, and the ones that matter are checked with mutants: a
 test that stays green when the code it guards is broken is not a test. CI runs
 all of it on every push.
@@ -130,7 +130,7 @@ gate that read the output lines it expected and called a failing build green
 for hours. No one reported any of them. Each was found by measuring something
 that looked fine.
 
-There are eighteen of those, written up with what the screen showed, why
+There are nineteen of those, written up with what the screen showed, why
 nothing flagged it and how it was caught, at
 [darkflow.martincasais.com/notes](https://darkflow.martincasais.com/notes).
 The same page has the five working rules that came out of them and the

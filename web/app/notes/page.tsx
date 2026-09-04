@@ -213,7 +213,17 @@ const FAILURES: readonly Failure[] = [
       "The gate piped the build’s output through a filter for “error”, “Failed” and the success line. The build compiled, then died two steps later on “⨯ Invalid segment configuration export” — a route exporting maxDuration as an imported constant where the framework requires a literal — and that line contains none of the three words. The exit code was never read.",
     caught:
       "Trying to start the production server for a screen recording: no BUILD_ID. The route exports a literal now, a test holds it equal to the constant the stream limit derives from, and a gate is its exit code — the output is for reading, not for deciding.",
-    where: "app/api/stream/route.ts · the verification rig",
+    where: "app/api/[endpoint]/route.ts · the verification rig",
+  },
+  {
+    title: "A status endpoint describing a process that was not there",
+    showed:
+      "First deployment. The stream delivered frames and the page went live; /api/state, asked the same second, reported running: false and zero starts, and the panel’s COVERAGE reading stayed blank.",
+    silent:
+      "The three paths were three route files, and on this platform a route file is its own function with its own instance. The core lives in module state. The stream’s function had one; the state’s function had never started one, and answered truthfully about the wrong process. Locally, where everything is one process, the three had always agreed.",
+    caught:
+      "Reading /api/state and /api/stream from outside within the same minute and noticing they could not both be true. One dynamic route now serves the three paths from one function.",
+    where: "app/api/[endpoint]/route.ts",
   },
 ];
 

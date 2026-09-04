@@ -5,9 +5,12 @@ and chain head, turned into one Server-Sent Events stream that any number of
 open pages read. It speaks the wire contract in `../web/types/stream.ts` and
 nothing else.
 
-It has no process of its own. The web's route handlers
-(`web/app/api/{stream,state,health}`) import `src/core.ts` and `src/vercel.ts`
-and run the whole thing inside the site's functions on Vercel. Same origin, so
+It has no process of its own. One route handler in the web
+(`web/app/api/[endpoint]/route.ts`, serving `/api/stream`, `/api/state` and
+`/api/health`) imports `src/core.ts` and `src/vercel.ts` and runs the whole
+thing inside one of the site's functions on Vercel. One handler, not three:
+each route file there is its own function with its own instance, and the core
+lives in module state. Same origin, so
 no CORS; one upstream connection shared by every page an instance serves;
 subscribed when the first page arrives, dropped a minute after the last one
 leaves. Zero runtime dependencies. Node 24 runs the TypeScript as it is.

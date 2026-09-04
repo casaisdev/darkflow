@@ -31,8 +31,12 @@ A recording can be driven, because it is a record and not the chain: pause
 opens it at that block. Calibration runs at ×6 on a recording and the status
 says so; a live source cannot be sped up and will not be.
 
-The live feed comes from `app/api/{stream,state,health}`, which run the
-ingest core from `../ingest` inside the site's own functions. They need
+The live feed comes from `app/api/[endpoint]/route.ts`, one handler for
+`/api/stream`, `/api/state` and `/api/health` that runs the ingest core from
+`../ingest` inside the site's functions. One file on purpose: on Vercel each
+route file is its own function with its own instance, and the core lives in
+module state, so `/api/state` can only describe the stream it shares a
+function with. They need
 `UPSTREAM_WS_URL` in the server environment and nothing else; the stream limit
 is derived from the route's `maxDuration` so the two cannot drift.
 
@@ -53,9 +57,10 @@ is derived from the route's `maxDuration` so the two cannot drift.
 | `lib/capability.ts` | Render budget from hardware hints, corrected by frames that actually rendered. |
 | `lib/stream/` | The three sources behind one `subscribe`, the SSE parser, the coverage poll. |
 | `lib/replay/format.ts` | The recording format, shared with `scripts/capture-replay.mjs`. |
-| `lib/ingest-core.ts` | The one place an ingest core is created, for the route handlers. |
+| `app/api/[endpoint]/route.ts` | The live feed: stream, state and health from one function. |
+| `lib/ingest-core.ts` | The one place an ingest core is created, for that route. |
 | `scripts/` | Fake ingest, recording capture, soak, favicon. |
-| `tests/` | 394 tests. The recording in `tests/fixtures/` pins the axis-stability numbers. |
+| `tests/` | 395 tests. The recording in `tests/fixtures/` pins the axis-stability numbers. |
 
 ## Design rules
 
