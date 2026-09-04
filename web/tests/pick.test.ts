@@ -235,6 +235,70 @@ describe("pointing at a mark in the chamber", () => {
     expect(hit?.hash).toBe(hashOf(401));
   });
 
+  /**
+   * A mark drifts, and pointing at one means holding still while it walks
+   * away. The mark that was answering keeps answering within twice the pick
+   * reach, even past a nearer neighbour; beyond that it is let go.
+   */
+  describe("holding on to the mark that was answering", () => {
+    const held = { x: 0.5, y: 0.5 };
+    const neighbour = { x: 0.5, y: 0.5 - 0.02 };
+    const at = (px: { x: number; y: number }, dx: number, dy: number) => ({
+      x: chamberX(view, px.x) + dx,
+      y: chamberY(view, px.y) + dy,
+    });
+    const nearNeighbour = () => {
+      const p = at(neighbour, 3, 0);
+      // The pointer is 3px from the neighbour and 20px from the held mark.
+      const y = chamberY(view, held.y);
+      expect(Math.abs(y - p.y)).toBeGreaterThan(12);
+      expect(Math.abs(y - p.y)).toBeLessThan(24);
+      return p;
+    };
+
+    it("keeps it while it is within twice the reach, past a nearer mark", () => {
+      const world = withMarks([held, neighbour]);
+      const pointer = nearNeighbour();
+      const withHold = pick(world, view, pointer, { ...options, held: hashOf(400) });
+      expect(withHold?.hash).toBe(hashOf(400));
+      // The anchor follows the held mark, not the pointer.
+      expect(withHold?.screen.y).toBeCloseTo(chamberY(view, held.y), 6);
+      // Without a hold the same pointer means the neighbour: the hold is
+      // what changed the answer, not the geometry.
+      expect(pick(world, view, pointer, options)?.hash).toBe(hashOf(401));
+    });
+
+    it("lets go once it has drifted past twice the reach", () => {
+      const world = withMarks([held, neighbour]);
+      const pointer = at(held, 0, 25);
+      expect(pick(world, view, pointer, { ...options, held: hashOf(400) })).toBeNull();
+      const farNeighbour = at(neighbour, 0, -25);
+      expect(
+        pick(world, view, farNeighbour, { ...options, held: hashOf(400) }),
+      ).toBeNull();
+    });
+
+    it("does not hold a mark that is no longer pending", () => {
+      const world = withMarks([held]);
+      world.entities[0]!.phase = "flying";
+      const pointer = at(held, 0, 0);
+      expect(pick(world, view, pointer, { ...options, held: hashOf(400) })).toBeNull();
+    });
+
+    it("never holds a row: a row does not move", () => {
+      const world = worldWithBlock(20, () => false);
+      const rect = slotRect(view, 4, 20, false);
+      const hit = pick(
+        world,
+        view,
+        { x: view.width * (BLOCK_RIGHT - BLOCK_WIDTH / 2), y: rect.y + rect.height / 2 },
+        { ...options, held: hashOf(7) },
+      );
+      expect(hit?.where).toBe("block");
+      expect(hit?.hash).toBe(hashOf(4));
+    });
+  });
+
   it("misses when nothing is within reach", () => {
     const world = withMarks([{ x: 0.2, y: 0.2 }]);
     expect(

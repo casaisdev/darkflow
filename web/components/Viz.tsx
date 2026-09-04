@@ -650,7 +650,13 @@ export function Viz({
         world,
         engine.view(),
         { x: event.clientX - box.left, y: event.clientY - box.top },
-        pickOptions(),
+        {
+          ...pickOptions(),
+          // What is ringed in the chamber right now is what the pointer is
+          // holding: it keeps answering while it drifts, and a click pins
+          // exactly what the reader sees ringed.
+          held: highlight?.where === "mempool" ? highlight.hash : null,
+        },
       );
     }
 

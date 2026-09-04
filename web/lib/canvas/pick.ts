@@ -72,6 +72,19 @@ export type Inspected = {
  */
 const MARK_PICK_RADIUS = 12;
 
+/**
+ * How far the mark already answering may drift before the pointer loses it.
+ *
+ * A mark moves: it drifts, and it fades. Pointing at one and holding still,
+ * the mark walks out of the twelve pixels within a second or two and the
+ * answer closes under a reader who has not moved, which reads as "you have
+ * to click". So a mark that is answering keeps answering while it is within
+ * twice the reach, and a neighbour only takes over once the held mark is
+ * really gone. Twice, not more: at three times a held mark could shadow a
+ * neighbour the reader has plainly moved on to.
+ */
+const MARK_HOLD_RADIUS = 2 * MARK_PICK_RADIUS;
+
 export type PickOptions = {
   /** False while calibrating: no classification exists to report. Rule 1. */
   showGhosts: boolean;
@@ -79,6 +92,12 @@ export type PickOptions = {
   feeScale: (tip: number) => number;
   /** ms since epoch. Passed in, never read, so a pick is reproducible. */
   now: number;
+  /**
+   * The pending mark already answering the pointer, if any, by hash. It is
+   * kept while it stays within `MARK_HOLD_RADIUS`; see there. Rows are not
+   * held: a row does not move.
+   */
+  held?: Hex | null;
 };
 
 export function pick(
@@ -181,6 +200,21 @@ function pickMark(
   pointer: { x: number; y: number },
   options: PickOptions,
 ): Inspected | null {
+  if (options.held) {
+    const kept = state.entities.find(
+      (entity) => entity.phase === "pending" && entity.hash === options.held,
+    );
+    if (kept) {
+      const x = chamberX(view, kept.x);
+      const y = chamberY(view, kept.y);
+      const dx = x - pointer.x;
+      const dy = y - pointer.y;
+      if (dx * dx + dy * dy <= MARK_HOLD_RADIUS * MARK_HOLD_RADIUS) {
+        return describe(state, kept, "mempool", options, { x, y });
+      }
+    }
+  }
+
   let best: Entity | null = null;
   let bestDistance = MARK_PICK_RADIUS * MARK_PICK_RADIUS;
   let bestScreen = { x: 0, y: 0 };

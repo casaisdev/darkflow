@@ -950,6 +950,10 @@ canvas:focus-visible {
   display: flex;
   align-items: center;
   pointer-events: none;
+  /* `top` is the pointer's height. The box is as tall as the readout pill
+     and the rule sits at its middle, so without this the rule drew about
+     ten pixels below the pointer: the reading was right, the line was not. */
+  transform: translateY(-50%);
 }
 
 .df-cursor-rule {
